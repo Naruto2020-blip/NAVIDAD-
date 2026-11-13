@@ -1,0 +1,6 @@
+{
+  "name": "Navidad",
+  "description": "Cuenta regresiva navideña en tiempo real con nieve animada y música festiva de fondo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
