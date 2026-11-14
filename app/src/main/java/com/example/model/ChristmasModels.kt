@@ -1,8 +1,5 @@
 package com.example.model
 
-import androidx.annotation.RawRes
-import com.example.R
-
 enum class FestiveTarget(
     val title: String,
     val month: Int,
@@ -51,56 +48,12 @@ data class CountdownSnapshot(
     val targetDateLabel: String,
 )
 
-data class CarolTrack(
-    val id: String,
-    val title: String,
-    val subtitle: String,
-    val tempoLabel: String,
-    val durationSeconds: Int,
-    @RawRes val rawResId: Int,
-)
-
 data class FestiveMessage(
     val title: String,
     val body: String,
 )
 
 object FestiveCatalog {
-    val carols: List<CarolTrack> = listOf(
-        CarolTrack(
-            id = "noche_de_paz",
-            title = "Noche de Paz",
-            subtitle = "Celesta cálida y armonía serena",
-            tempoLabel = "Sereno · 3/4",
-            durationSeconds = 46,
-            rawResId = R.raw.carol_noche_de_paz,
-        ),
-        CarolTrack(
-            id = "cascabeles",
-            title = "Cascabeles (Jingle Bells)",
-            subtitle = "Campanas festivas y trineo nevado",
-            tempoLabel = "Alegre · 4/4",
-            durationSeconds = 30,
-            rawResId = R.raw.carol_cascabeles,
-        ),
-        CarolTrack(
-            id = "adornemos",
-            title = "Adornemos los Salones",
-            subtitle = "Carillón navideño tradicional",
-            tempoLabel = "Festivo · 4/4",
-            durationSeconds = 31,
-            rawResId = R.raw.carol_adornemos,
-        ),
-        CarolTrack(
-            id = "feliz_navidad",
-            title = "Os Deseamos Feliz Navidad",
-            subtitle = "Brindis musical de fin de año",
-            tempoLabel = "Jubiloso · 3/4",
-            durationSeconds = 21,
-            rawResId = R.raw.carol_feliz_navidad,
-        ),
-    )
-
     val dailyMessages: List<FestiveMessage> = listOf(
         FestiveMessage(
             title = "Espíritu de Adviento",
@@ -108,7 +61,7 @@ object FestiveCatalog {
         ),
         FestiveMessage(
             title = "Melodías del Hogar",
-            body = "Los villancicos transforman cualquier tarde tranquila en un recuerdo inolvidable de diciembre.",
+            body = "La música navideña transforma cualquier tarde tranquila en un recuerdo inolvidable de diciembre.",
         ),
         FestiveMessage(
             title = "Pequeños Gestos",

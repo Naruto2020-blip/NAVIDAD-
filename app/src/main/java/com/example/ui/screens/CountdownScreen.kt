@@ -21,13 +21,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.NotificationsActive
-import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -65,7 +65,7 @@ fun CountdownScreen(
     onToggleMusic: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isPlaying = uiState.preferences.musicEnabled && uiState.audioState.isPlaying
+    val isPlaying = uiState.isMusicPlaying
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -231,7 +231,7 @@ private fun HeroChristmasBanner(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.MusicNote else Icons.Rounded.VolumeOff,
+                        imageVector = if (isPlaying) Icons.Rounded.MusicNote else Icons.AutoMirrored.Rounded.VolumeOff,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(16.dp),

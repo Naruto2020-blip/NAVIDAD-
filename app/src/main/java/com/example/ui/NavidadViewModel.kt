@@ -3,11 +3,9 @@ package com.example.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.audio.AudioPlaybackState
 import com.example.audio.FestiveAudioManager
 import com.example.data.FestivePreferences
 import com.example.data.FestivePreferencesRepository
-import com.example.model.CarolTrack
 import com.example.model.CountdownSnapshot
 import com.example.model.FestiveCatalog
 import com.example.model.FestiveMessage
@@ -24,8 +22,7 @@ import java.util.Calendar
 data class NavidadUiState(
     val countdown: CountdownSnapshot,
     val preferences: FestivePreferences,
-    val currentTrack: CarolTrack,
-    val audioState: AudioPlaybackState,
+    val isMusicPlaying: Boolean,
     val dailyMessage: FestiveMessage,
     val bellRingCount: Int = 0,
 )
@@ -36,6 +33,7 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
     private val audioManager = FestiveAudioManager(application)
 
     private val nowMillisFlow = MutableStateFlow(System.currentTimeMillis())
+    private val musicEnabledFlow = MutableStateFlow(true)
     private val bellRingCountFlow = MutableStateFlow(0)
 
     private val preferencesFlow = repository.preferencesFlow.stateIn(
@@ -47,12 +45,9 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<NavidadUiState> = combine(
         nowMillisFlow,
         preferencesFlow,
-        audioManager.playbackState,
+        audioManager.isPlaying,
         bellRingCountFlow,
-    ) { nowMillis, prefs, audioState, bellCount ->
-        val track = FestiveCatalog.carols.firstOrNull { it.id == prefs.selectedTrackId }
-            ?: FestiveCatalog.carols.first()
-
+    ) { nowMillis, prefs, isPlaying, bellCount ->
         val countdown = computeCountdown(nowMillis, prefs.selectedTarget)
         val dayIndex = ((nowMillis / 86_400_000L) % FestiveCatalog.dailyMessages.size).toInt()
         val message = FestiveCatalog.dailyMessages[dayIndex.coerceAtLeast(0)]
@@ -60,8 +55,7 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         NavidadUiState(
             countdown = countdown,
             preferences = prefs,
-            currentTrack = track,
-            audioState = audioState,
+            isMusicPlaying = isPlaying,
             dailyMessage = message,
             bellRingCount = bellCount,
         )
@@ -71,35 +65,20 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         initialValue = NavidadUiState(
             countdown = computeCountdown(System.currentTimeMillis(), FestiveTarget.NAVIDAD),
             preferences = FestivePreferences(),
-            currentTrack = FestiveCatalog.carols.first(),
-            audioState = AudioPlaybackState(),
+            isMusicPlaying = true,
             dailyMessage = FestiveCatalog.dailyMessages.first(),
         ),
     )
 
     init {
-        // Real-time 1-second countdown and audio progress ticker
+        // Start single background carol automatically when the app opens
+        audioManager.setPlaybackEnabled(true)
+
+        // Real-time countdown ticker
         viewModelScope.launch {
             while (true) {
                 nowMillisFlow.value = System.currentTimeMillis()
-                val prefs = preferencesFlow.value
-                val track = FestiveCatalog.carols.firstOrNull { it.id == prefs.selectedTrackId }
-                    ?: FestiveCatalog.carols.first()
-                audioManager.refreshProgress(track)
                 delay(500L)
-            }
-        }
-
-        // Sync MediaPlayer whenever track, play toggle, or volume preferences change
-        viewModelScope.launch {
-            repository.preferencesFlow.collect { prefs ->
-                val track = FestiveCatalog.carols.firstOrNull { it.id == prefs.selectedTrackId }
-                    ?: FestiveCatalog.carols.first()
-                audioManager.startOrUpdateTrack(
-                    track = track,
-                    shouldPlay = prefs.musicEnabled,
-                    volume = prefs.volume,
-                )
             }
         }
     }
@@ -110,41 +89,10 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun togglePlayPause() {
-        viewModelScope.launch {
-            val nextPlay = !preferencesFlow.value.musicEnabled
-            repository.setMusicEnabled(nextPlay)
-        }
-    }
-
-    fun selectTrack(track: CarolTrack) {
-        viewModelScope.launch {
-            repository.setSelectedTrack(track.id)
-            repository.setMusicEnabled(true)
-        }
-    }
-
-    fun nextTrack() {
-        val carols = FestiveCatalog.carols
-        val currentId = preferencesFlow.value.selectedTrackId
-        val idx = carols.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
-        val next = carols[(idx + 1) % carols.size]
-        selectTrack(next)
-    }
-
-    fun previousTrack() {
-        val carols = FestiveCatalog.carols
-        val currentId = preferencesFlow.value.selectedTrackId
-        val idx = carols.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
-        val prev = carols[(idx - 1 + carols.size) % carols.size]
-        selectTrack(prev)
-    }
-
-    fun setVolume(volume: Float) {
-        audioManager.setVolume(volume)
-        viewModelScope.launch {
-            repository.setVolume(volume)
-        }
+    fun toggleMusic() {
+        val next = !musicEnabledFlow.value
+        musicEnabledFlow.value = next
+        audioManager.setPlaybackEnabled(next)
     }
 
     fun toggleSnow() {
@@ -165,7 +113,7 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onAppForeground() {
-        audioManager.onEnterForeground(shouldPlay = preferencesFlow.value.musicEnabled)
+        audioManager.onEnterForeground(shouldPlay = musicEnabledFlow.value)
     }
 
     fun onAppBackground() {
