@@ -107,6 +107,8 @@ private fun NavidadAppShell(
                     onRingBells = viewModel::ringBells,
                     onToggleMusic = viewModel::toggleMusic,
                     onNextSong = viewModel::nextSong,
+                    onCheckUpdates = { viewModel.checkForUpdates(manual = true) },
+                    onDismissUpdate = viewModel::dismissUpdateDialog,
                     modifier = Modifier.widthIn(max = 840.dp),
                 )
             }

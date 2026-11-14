@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
@@ -29,16 +31,21 @@ import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -47,13 +54,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.BuildConfig
 import com.example.R
+import com.example.data.AppUpdateInfo
 import com.example.model.FestiveTarget
 import com.example.ui.NavidadUiState
+import com.example.ui.UpdateUiState
 import com.example.ui.components.CountdownDeck
 import com.example.ui.components.TargetSelectorRow
 
@@ -66,9 +77,70 @@ fun CountdownScreen(
     onRingBells: () -> Unit,
     onToggleMusic: () -> Unit,
     onNextSong: () -> Unit,
+    onCheckUpdates: () -> Unit,
+    onDismissUpdate: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isPlaying = uiState.isMusicPlaying
+    val context = LocalContext.current
+
+    fun openUpdateLink(info: AppUpdateInfo) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(info.downloadUrl))
+        context.startActivity(intent)
+    }
+
+    uiState.updateState.availableUpdate?.let { update ->
+        AlertDialog(
+            onDismissRequest = onDismissUpdate,
+            icon = {
+                Icon(
+                    imageVector = Icons.Rounded.SystemUpdate,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            },
+            title = {
+                Text(
+                    text = "¡Nueva actualización disponible!",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Versión ${update.versionName} lista para instalar (actual: ${BuildConfig.VERSION_NAME}).",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = update.notes,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDismissUpdate()
+                        openUpdateLink(update)
+                    },
+                    modifier = Modifier.testTag("confirm_update_button"),
+                ) {
+                    Text("Actualizar ahora")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = onDismissUpdate,
+                    modifier = Modifier.testTag("dismiss_update_button"),
+                ) {
+                    Text("Más tarde")
+                }
+            },
+            modifier = Modifier.testTag("update_available_dialog"),
+        )
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -178,6 +250,13 @@ fun CountdownScreen(
                 onRingBells = onRingBells,
             )
         }
+
+        item {
+            AppVersionUpdateCard(
+                updateState = uiState.updateState,
+                onCheckUpdates = onCheckUpdates,
+            )
+        }
     }
 }
 
@@ -221,7 +300,6 @@ private fun HeroChristmasBanner(
                     ),
             )
 
-            // Top-right music controls (active song pill + next song button)
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -393,6 +471,68 @@ private fun FestiveInspirationCard(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppVersionUpdateCard(
+    updateState: UpdateUiState,
+    onCheckUpdates: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = "Versión ${BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = updateState.statusMessage ?: "Comprobación automática con GitHub activa",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.size(12.dp))
+
+            OutlinedButton(
+                onClick = onCheckUpdates,
+                enabled = !updateState.isChecking,
+                modifier = Modifier
+                    .height(48.dp)
+                    .testTag("check_update_button"),
+            ) {
+                if (updateState.isChecking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.SystemUpdate,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
+                    Text("Buscar")
                 }
             }
         }

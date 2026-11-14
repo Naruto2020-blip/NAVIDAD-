@@ -3,9 +3,12 @@ package com.example.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.audio.FestiveAudioManager
+import com.example.data.AppUpdateInfo
 import com.example.data.FestivePreferences
 import com.example.data.FestivePreferencesRepository
+import com.example.data.UpdateChecker
 import com.example.model.BackgroundSong
 import com.example.model.CountdownSnapshot
 import com.example.model.FestiveCatalog
@@ -20,6 +23,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+data class UpdateUiState(
+    val availableUpdate: AppUpdateInfo? = null,
+    val isChecking: Boolean = false,
+    val statusMessage: String? = null,
+)
+
 data class NavidadUiState(
     val countdown: CountdownSnapshot,
     val preferences: FestivePreferences,
@@ -27,6 +36,7 @@ data class NavidadUiState(
     val currentSong: BackgroundSong,
     val dailyMessage: FestiveMessage,
     val bellRingCount: Int = 0,
+    val updateState: UpdateUiState = UpdateUiState(),
 )
 
 class NavidadViewModel(application: Application) : AndroidViewModel(application) {
@@ -37,6 +47,7 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
     private val nowMillisFlow = MutableStateFlow(System.currentTimeMillis())
     private val musicEnabledFlow = MutableStateFlow(true)
     private val bellRingCountFlow = MutableStateFlow(0)
+    private val updateStateFlow = MutableStateFlow(UpdateUiState())
 
     private val preferencesFlow = repository.preferencesFlow.stateIn(
         scope = viewModelScope,
@@ -44,13 +55,20 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         initialValue = FestivePreferences(),
     )
 
+    private val audioUiFlow = combine(
+        audioManager.isPlaying,
+        audioManager.currentSong,
+    ) { isPlaying, currentSong ->
+        isPlaying to currentSong
+    }
+
     val uiState: StateFlow<NavidadUiState> = combine(
         nowMillisFlow,
         preferencesFlow,
-        audioManager.isPlaying,
-        audioManager.currentSong,
+        audioUiFlow,
         bellRingCountFlow,
-    ) { nowMillis, prefs, isPlaying, currentSong, bellCount ->
+        updateStateFlow,
+    ) { nowMillis, prefs, audioPair, bellCount, updateState ->
         val countdown = computeCountdown(nowMillis, prefs.selectedTarget)
         val dayIndex = ((nowMillis / 86_400_000L) % FestiveCatalog.dailyMessages.size).toInt()
         val message = FestiveCatalog.dailyMessages[dayIndex.coerceAtLeast(0)]
@@ -58,10 +76,11 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         NavidadUiState(
             countdown = countdown,
             preferences = prefs,
-            isMusicPlaying = isPlaying,
-            currentSong = currentSong,
+            isMusicPlaying = audioPair.first,
+            currentSong = audioPair.second,
             dailyMessage = message,
             bellRingCount = bellCount,
+            updateState = updateState,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -79,6 +98,9 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         // Start festive background music automatically when the app opens
         audioManager.setPlaybackEnabled(true)
 
+        // Check GitHub automatically for newer app versions on startup
+        checkForUpdates(manual = false)
+
         // Real-time countdown ticker
         viewModelScope.launch {
             while (true) {
@@ -86,6 +108,38 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
                 delay(500L)
             }
         }
+    }
+
+    fun checkForUpdates(manual: Boolean = true) {
+        if (updateStateFlow.value.isChecking) return
+        viewModelScope.launch {
+            updateStateFlow.value = updateStateFlow.value.copy(
+                isChecking = true,
+                statusMessage = if (manual) "Buscando actualizaciones..." else null,
+            )
+            val update = UpdateChecker.fetchLatestUpdate(BuildConfig.VERSION_CODE)
+            updateStateFlow.value = if (update != null) {
+                UpdateUiState(
+                    availableUpdate = update,
+                    isChecking = false,
+                    statusMessage = "Nueva versión v${update.versionName} disponible",
+                )
+            } else {
+                UpdateUiState(
+                    availableUpdate = null,
+                    isChecking = false,
+                    statusMessage = if (manual) {
+                        "Ya tienes la última versión (${BuildConfig.VERSION_NAME})"
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        updateStateFlow.value = updateStateFlow.value.copy(availableUpdate = null)
     }
 
     fun selectTarget(target: FestiveTarget) {
