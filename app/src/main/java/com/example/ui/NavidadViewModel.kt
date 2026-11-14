@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.audio.FestiveAudioManager
 import com.example.data.FestivePreferences
 import com.example.data.FestivePreferencesRepository
+import com.example.model.BackgroundSong
 import com.example.model.CountdownSnapshot
 import com.example.model.FestiveCatalog
 import com.example.model.FestiveMessage
@@ -23,6 +24,7 @@ data class NavidadUiState(
     val countdown: CountdownSnapshot,
     val preferences: FestivePreferences,
     val isMusicPlaying: Boolean,
+    val currentSong: BackgroundSong,
     val dailyMessage: FestiveMessage,
     val bellRingCount: Int = 0,
 )
@@ -46,8 +48,9 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         nowMillisFlow,
         preferencesFlow,
         audioManager.isPlaying,
+        audioManager.currentSong,
         bellRingCountFlow,
-    ) { nowMillis, prefs, isPlaying, bellCount ->
+    ) { nowMillis, prefs, isPlaying, currentSong, bellCount ->
         val countdown = computeCountdown(nowMillis, prefs.selectedTarget)
         val dayIndex = ((nowMillis / 86_400_000L) % FestiveCatalog.dailyMessages.size).toInt()
         val message = FestiveCatalog.dailyMessages[dayIndex.coerceAtLeast(0)]
@@ -56,6 +59,7 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
             countdown = countdown,
             preferences = prefs,
             isMusicPlaying = isPlaying,
+            currentSong = currentSong,
             dailyMessage = message,
             bellRingCount = bellCount,
         )
@@ -66,12 +70,13 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
             countdown = computeCountdown(System.currentTimeMillis(), FestiveTarget.NAVIDAD),
             preferences = FestivePreferences(),
             isMusicPlaying = true,
+            currentSong = BackgroundSong.CAMPANA_SOBRE_CAMPANA,
             dailyMessage = FestiveCatalog.dailyMessages.first(),
         ),
     )
 
     init {
-        // Start single background carol automatically when the app opens
+        // Start festive background music automatically when the app opens
         audioManager.setPlaybackEnabled(true)
 
         // Real-time countdown ticker
@@ -93,6 +98,11 @@ class NavidadViewModel(application: Application) : AndroidViewModel(application)
         val next = !musicEnabledFlow.value
         musicEnabledFlow.value = next
         audioManager.setPlaybackEnabled(next)
+    }
+
+    fun nextSong() {
+        musicEnabledFlow.value = true
+        audioManager.nextSong()
     }
 
     fun toggleSnow() {

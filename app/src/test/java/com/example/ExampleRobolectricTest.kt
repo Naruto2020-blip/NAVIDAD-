@@ -34,5 +34,6 @@ class ExampleRobolectricTest {
         composeRule.onNodeWithText("Magia de Navidad").assertIsDisplayed()
         composeRule.onNodeWithTag("countdown_days").assertIsDisplayed()
         composeRule.onNodeWithTag("hero_music_pill").assertIsDisplayed()
+        composeRule.onNodeWithTag("hero_next_song_button").assertIsDisplayed()
     }
 }

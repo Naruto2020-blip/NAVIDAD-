@@ -2,6 +2,7 @@
     <string name="app_name">Navidad</string>
     <string name="cd_hero_banner">Escena navideña junto a la ventana nevada y el árbol iluminado</string>
     <string name="cd_play_pause">Reproducir o pausar música navideña</string>
+    <string name="cd_next_song">Cambiar canción de fondo</string>
     <string name="cd_ring_bells">Tocar campanillas navideñas</string>
     <string name="cd_toggle_snow">Activar o desactivar nieve</string>
     <string name="cd_toggle_theme">Cambiar ambiente visual</string>

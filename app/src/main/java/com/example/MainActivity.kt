@@ -106,6 +106,7 @@ private fun NavidadAppShell(
                     onToggleAmbiance = viewModel::toggleAmbiance,
                     onRingBells = viewModel::ringBells,
                     onToggleMusic = viewModel::toggleMusic,
+                    onNextSong = viewModel::nextSong,
                     modifier = Modifier.widthIn(max = 840.dp),
                 )
             }

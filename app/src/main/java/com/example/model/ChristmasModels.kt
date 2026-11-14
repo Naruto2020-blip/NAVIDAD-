@@ -37,6 +37,13 @@ enum class FestiveTarget(
     ),
 }
 
+enum class BackgroundSong(
+    val title: String,
+) {
+    CAMPANA_SOBRE_CAMPANA("Campana sobre Campana"),
+    NOCHE_DE_PAZ("Noche de Paz"),
+}
+
 data class CountdownSnapshot(
     val target: FestiveTarget,
     val days: Long,

@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.SoundPool
 import com.example.R
+import com.example.model.BackgroundSong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,9 @@ class FestiveAudioManager(private val context: Context) {
     private var desiredPlaying: Boolean = false
     private var pausedForBackground: Boolean = false
     private val backgroundVolume = 0.72f
+
+    private val _currentSong = MutableStateFlow(BackgroundSong.CAMPANA_SOBRE_CAMPANA)
+    val currentSong: StateFlow<BackgroundSong> = _currentSong.asStateFlow()
 
     private val soundPool: SoundPool? = try {
         SoundPool.Builder()
@@ -56,7 +60,7 @@ class FestiveAudioManager(private val context: Context) {
         pausedForBackground = false
 
         if (mediaPlayer == null && !isPreparing) {
-            initAndPreparePlayer()
+            initAndPreparePlayer(_currentSong.value)
             return
         }
 
@@ -78,15 +82,31 @@ class FestiveAudioManager(private val context: Context) {
         }
     }
 
-    private fun initAndPreparePlayer() {
+    fun nextSong() {
+        val songs = BackgroundSong.entries
+        val nextIndex = (songs.indexOf(_currentSong.value) + 1) % songs.size
+        val next = songs[nextIndex]
+        _currentSong.value = next
+        desiredPlaying = true
+        pausedForBackground = false
+        releasePlayerOnly()
+        initAndPreparePlayer(next)
+    }
+
+    private fun rawResForSong(song: BackgroundSong): Int = when (song) {
+        BackgroundSong.CAMPANA_SOBRE_CAMPANA -> R.raw.carol_campana_sobre_campana
+        BackgroundSong.NOCHE_DE_PAZ -> R.raw.carol_noche_de_paz
+    }
+
+    private fun initAndPreparePlayer(song: BackgroundSong) {
         isPreparing = true
         isPrepared = false
         try {
-            val afd = context.resources.openRawResourceFd(R.raw.carol_noche_de_paz)
+            val afd = context.resources.openRawResourceFd(rawResForSong(song))
             val player = MediaPlayer().apply {
                 setAudioAttributes(audioAttributes)
                 setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
-                isLooping = true
+                isLooping = false
                 setVolume(backgroundVolume, backgroundVolume)
                 setOnPreparedListener { mp ->
                     isPreparing = false
@@ -98,6 +118,11 @@ class FestiveAudioManager(private val context: Context) {
                         _isPlaying.value = mp.isPlaying
                     } catch (_: Exception) {
                         _isPlaying.value = false
+                    }
+                }
+                setOnCompletionListener {
+                    if (desiredPlaying && !pausedForBackground) {
+                        nextSong()
                     }
                 }
                 setOnErrorListener { _, _, _ ->
@@ -117,6 +142,20 @@ class FestiveAudioManager(private val context: Context) {
             mediaPlayer = null
             _isPlaying.value = false
         }
+    }
+
+    private fun releasePlayerOnly() {
+        isPreparing = false
+        isPrepared = false
+        try {
+            mediaPlayer?.stop()
+        } catch (_: Exception) {
+        }
+        try {
+            mediaPlayer?.release()
+        } catch (_: Exception) {
+        }
+        mediaPlayer = null
     }
 
     fun ringBells() {
@@ -146,17 +185,7 @@ class FestiveAudioManager(private val context: Context) {
     }
 
     fun releaseAll() {
-        isPreparing = false
-        isPrepared = false
-        try {
-            mediaPlayer?.stop()
-        } catch (_: Exception) {
-        }
-        try {
-            mediaPlayer?.release()
-        } catch (_: Exception) {
-        }
-        mediaPlayer = null
+        releasePlayerOnly()
         try {
             soundPool?.release()
         } catch (_: Exception) {

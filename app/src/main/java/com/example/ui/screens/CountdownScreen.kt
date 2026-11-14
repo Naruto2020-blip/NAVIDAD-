@@ -28,6 +28,7 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,6 +39,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,6 +65,7 @@ fun CountdownScreen(
     onToggleAmbiance: () -> Unit,
     onRingBells: () -> Unit,
     onToggleMusic: () -> Unit,
+    onNextSong: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isPlaying = uiState.isMusicPlaying
@@ -142,8 +145,10 @@ fun CountdownScreen(
         item {
             HeroChristmasBanner(
                 target = uiState.countdown.target,
+                songTitle = uiState.currentSong.title,
                 isPlaying = isPlaying,
                 onToggleMusic = onToggleMusic,
+                onNextSong = onNextSong,
             )
         }
 
@@ -179,8 +184,10 @@ fun CountdownScreen(
 @Composable
 private fun HeroChristmasBanner(
     target: FestiveTarget,
+    songTitle: String,
     isPlaying: Boolean,
     onToggleMusic: () -> Unit,
+    onNextSong: () -> Unit,
 ) {
     Card(
         shape = MaterialTheme.shapes.large,
@@ -214,33 +221,60 @@ private fun HeroChristmasBanner(
                     ),
             )
 
-            // Top-right music pill
-            Surface(
-                onClick = onToggleMusic,
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.55f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+            // Top-right music controls (active song pill + next song button)
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(12.dp)
-                    .testTag("hero_music_pill"),
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                Surface(
+                    onClick = onToggleMusic,
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.55f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .minimumInteractiveComponentSize()
+                        .testTag("hero_music_pill"),
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.MusicNote else Icons.AutoMirrored.Rounded.VolumeOff,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        text = if (isPlaying) "Música activa" else "Música pausada",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.MusicNote else Icons.AutoMirrored.Rounded.VolumeOff,
+                            contentDescription = stringResource(R.string.cd_play_pause),
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = if (isPlaying) songTitle else "Música pausada",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            maxLines = 1,
+                        )
+                    }
+                }
+
+                Surface(
+                    onClick = onNextSong,
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.55f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .testTag("hero_next_song_button"),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = stringResource(R.string.cd_next_song),
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
             }
 
